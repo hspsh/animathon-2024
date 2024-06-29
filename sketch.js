@@ -1,5 +1,5 @@
 P5Capture.setDefaultOptions({
-  format: "mp4",
+  format: "png",
   framerate: 60,
   bitrate: 15000,
   disableScaling: true
@@ -14,6 +14,7 @@ let customFont;
 
 let loadedData;
 
+let backgroundflag;
 let pointState = {};
 let previousPointState = {};
 let fadeHistory = []; // Array to store previous states for fading
@@ -26,13 +27,15 @@ new p5((p5) => {
         ShaderMain = p5.loadShader('main_vert.glsl', 'main_frag.glsl');
         ShaderSide = p5.loadShader('side_vert.glsl', 'side_frag.glsl');
         texture = p5.loadImage('assets/gda_debug.png');
-	customFont = p5.loadFont('assets/E1234.ttf')
-	loadedData = p5.loadJSON('assets/dump_10.json');
+	customFont = p5.loadFont('assets/RobotoMono-Regular.ttf')
+	loadedData = p5.loadJSON('assets/dump_28_06_2024.json');
     }
 
     p5.setup = () => {
-        p5.createCanvas(4738, 2130, p5.WEBGL); // Match canvas size to texture size
+        p5.createCanvas(p5.windowWidth, p5.windowHeight, p5.WEBGL); // Match canvas size to texture size
         pMapper = p5.createProjectionMapper(p5);
+	
+	backgroundFlag = false;
 
         pgMain = p5.createGraphics(texture.width, texture.height, p5.WEBGL);
 
@@ -46,8 +49,9 @@ new p5((p5) => {
         // Initialize graphics buffers
         initializeGraphics(pgMain, "pink");
 
-	console.log(texture.width, texture.height)
+	let len;
 	for(i in loadedData) {
+	  len += 1;
 	  loadedData[i].bikes.map((bike) => {
 	    let transformed = transformCoordinates(bike.x, bike.y, texture.width, texture.height);
 	    bike.x = transformed.x;
@@ -56,6 +60,7 @@ new p5((p5) => {
 	  })
 	}
 	
+	console.log("length ", len)
 	console.log(loadedData)
         // Initialize pointState with the first timestamp
 	//console.log(loadedData[t]);
@@ -73,8 +78,8 @@ new p5((p5) => {
 
         // Increment frame counter and update pointState every 5 frames
         frameCounter++;
-        if (frameCounter % 5 === 0) {
-            t = (t + 1) % 10;
+        if (frameCounter % 3 === 0) {
+            t = (t + 1) % 730;
             updatePointState(loadedData[t]);
         }
 
@@ -97,6 +102,9 @@ new p5((p5) => {
             case 's':
                 pMapper.save("map.json");
                 break;
+	    case 'b':
+		backgroundFlag = !backgroundFlag;
+		break;
         }
     }
 
@@ -129,40 +137,46 @@ new p5((p5) => {
         let hourOfDay = date.getHours().toString().padStart(2, '0'); // Get hour (0-23)
         let minuteOfDay = date.getMinutes().toString().padStart(2, '0'); // Get minute (0-59)
 
-        // Format DD.MM.YY HH:MM text
-        let dateText = `${day}.${month}.${year}`;
-        let timeText = `${hourOfDay}:${minuteOfDay}`;
+	let textArr = [
+	  `{`,
+	  `  "rodzaj": "System Mevo",`,
+	  `  "dane": "Dostępne rowery",`,
+	  `  "czas:" "${day}.${month}.${year} ${hourOfDay}:${minuteOfDay}"`,
+	  `}`
+	]
 
         // Draw DD.MM.YY and HH:MM text separately with a newline in between
         pg.textFont(customFont); // Set the font
-        pg.textSize(32); // Adjust text size as needed
-        pg.fill(255, 0, 0); // Set text color to red
-        pg.textAlign(p5.CENTER); // Align text to center
+        pg.textSize(20); // Adjust text size as needed
+        pg.fill(255); // Set text color to red
+        pg.textAlign(p5.LEFT); // Align text to center
 
         // Calculate positions based on canvas size
         let x = pg.width / 4;
-        let yDate = -160; // Y position for date text
-        let yTime = -120; // Y position for time text
+        let yText = -300; // Y position for date text
 
-        pg.text(dateText, x, yDate); // Draw date text
-        pg.text(timeText, x, yTime); // Draw time text
+	for (let i in textArr) {
+	  pg.text(textArr[i], x-160, yText + (i * 30)); // Adjust the Y position for each line of text
+	}
 
         // Map hour of the day to a hue value
         let hue = p5.map(hourOfDay, 0, 23, 240, 60); // Map 0-23 hours to hue from blue to yellow
 
         // Apply hue to the texture
         pg.tint(p5.color(hue, 255, 255)); // Convert hue to RGB and apply as tint
-
-        pg.texture(texture); // Apply the texture
-        pg.plane(texture.width, texture.height);
+	
+	if (backgroundFlag) { 
+	  pg.texture(texture); // Apply the texture
+	  pg.plane(texture.width, texture.height);
+	}
 
         // Draw fading bikes and lines
         drawFadingElements(pg);
 
         // Draw current bikes and their movement lines
         pg.push();
-        pg.fill(255, 0, 0);
-        pg.stroke(0, 255, 0); // Set stroke color to green
+        pg.fill(255);
+        pg.stroke(255); // Set stroke color to green
 
         for (let bike of loadedData[t].bikes) {
             let id = bike.vehicle_id;
@@ -210,7 +224,7 @@ new p5((p5) => {
     function updateFadeHistory() {
         // Reduce the alpha value of each element in the fade history
         fadeHistory.forEach((element, index) => {
-            element.alpha -= 5; // Adjust this value to control fade speed
+            element.alpha -= 3; // Adjust this value to control fade speed
             if (element.alpha <= 0) {
                 fadeHistory.splice(index, 1);
             }
@@ -220,10 +234,10 @@ new p5((p5) => {
     function drawFadingElements(pg) {
         pg.push();
         fadeHistory.forEach(element => {
-            pg.stroke(0, 255, 0, element.alpha); // Green lines with fading alpha
+            pg.stroke(255, 255, 255, element.alpha); // Green lines with fading alpha
             pg.line(element.x1, element.y1, element.x2, element.y2);
             pg.noStroke();
-            pg.fill(255, 0, 0, element.alpha); // Red ellipses with fading alpha
+            //pg.fill(255, 255, 255, element.alpha); // Red ellipses with fading alpha
             pg.ellipse(element.x1, element.y1, pg.width / 250);
             pg.ellipse(element.x2, element.y2, pg.width / 250);
         });
