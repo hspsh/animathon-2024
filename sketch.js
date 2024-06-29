@@ -7,30 +7,45 @@ P5Capture.setDefaultOptions({
 
 let pMapper;
 let MapMain, MapSide;
-
-let img;
+let ShaderMain, ShaderSide;
+let pgMain, pgSide;
 
 new p5((p5) => {
 
+    p5.preload = () => {
+        ShaderMain = p5.loadShader('main_vert.glsl', 'main_frag.glsl');
+        ShaderSide = p5.loadShader('side_vert.glsl', 'side_frag.glsl');
+    }
+
     p5.setup = () => {
         p5.createCanvas(p5.windowWidth, p5.windowHeight, p5.WEBGL);
-
-        // create mapper object
         pMapper = p5.createProjectionMapper(p5);
+
+        pgMain = p5.createGraphics(400, 400, p5.WEBGL);
+        pgSide = p5.createGraphics(400, 400, p5.WEBGL);
 
         MapMain = pMapper.createQuadMap(400, 400);
         MapSide = pMapper.createQuadMap(400, 400);
 
-        // loads calibration in the "maps" directory
         pMapper.load("maps/map.json");
+
+        // Initialize graphics buffers
+        initializeGraphics(pgMain, "pink");
+        initializeGraphics(pgSide, "pink");
     }
 
     p5.draw = () => {
         p5.background(0);
 
-        MapMain.displaySketch((pg) => rainbow(pg, p5));
-        MapSide.displaySketch((pg) => dots(pg, p5));
+        drawGraphics(pgMain, ShaderMain, simpleShape, p5);
+        MapMain.displaySketch((pg) => {
+            pg.image(pgMain, -pgMain.width / 2, -pgMain.height / 2, 2*pgMain.width, 2*pgMain.height); // Center the image
+        });
 
+        drawGraphics(pgSide, ShaderSide, simpleShape, p5);
+        MapSide.displaySketch((pg) => {
+            pg.image(pgSide, -pgSide.width / 2, -pgSide.height / 2, 2*pgSide.width, 2*pgSide.height); // Center the image
+        });
     }
 
     p5.windowResized = () => {
@@ -44,42 +59,37 @@ new p5((p5) => {
                 break;
             case 'f':
                 let fs = p5.fullscreen();
-                fullscreen(!fs);
+                p5.fullscreen(!fs);
                 break;
             case 'l':
                 pMapper.load("maps/map.json");
                 break;
-
             case 's':
                 pMapper.save("map.json");
                 break;
         }
     }
 
+    function initializeGraphics(pg, bgColor) {
+        pg.push();
+        pg.background(bgColor);
+        pg.pop();
+    }
+
+    function drawGraphics(pg, shader, drawFunction, p5) {
+        pg.push();
+        pg.clear(); // Clear the buffer for new drawing
+        pg.shader(shader); // Apply the shader to the graphics buffer
+        drawFunction(pg, p5); // Execute the custom drawing function
+        pg.resetShader(); // Reset the shader to default
+        pg.pop();
+    }
+
+    function simpleShape(pg, p5) {
+        pg.push();
+        pg.noStroke();
+        pg.fill(0, 255, 0);
+        pg.sphere(300); // Draw a simple shape to test shader
+        pg.pop();
+    }
 });
-
-function dots(pg, p5) {
-    p5.randomSeed(0);
-    pg.clear();
-    pg.push();
-    pg.background("pink");
-    pg.fill(255);
-    pg.noStroke();
-    for (let i = 0; i < 60; i++) {
-        pg.ellipse(p5.random(p5.width), p5.random(p5.height), p5.random(10, 80));
-    }
-    pg.pop();
-}
-
-function rainbow(pg, p5) {
-    pg.clear();
-    pg.push();
-    pg.background('pink');
-    pg.colorMode(p5.HSB, 255);
-
-    for (let i = 0; i < 1000; i++) {
-        pg.stroke(i % 255, 255, 255);
-        pg.line(i, 0, i, 300);
-    }
-    pg.pop();
-}
