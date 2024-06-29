@@ -10,6 +10,7 @@ let MapMain, MapSide;
 let ShaderMain, ShaderSide;
 let pgMain, pgSide;
 let texture;
+let customFont;
 let dataMock = [
   { timestamp: "2024-06-27 09:35:51.000000", bikes: [{ id: "aaa", x: -93, y: 14 }, { id: "bbb", x: -85, y: -79 }, { id: "ccc", x: -47, y: -70 }, { id: "ddd", x: 61, y: 23 }, { id: "eee", x: 38, y: 23 }] },
   { timestamp: "2024-06-27 09:36:51.000000", bikes: [{ id: "aaa", x: 92, y: 11 }, { id: "bbb", x: -5, y: -40 }, { id: "ccc", x: -37, y: 8 }, { id: "ddd", x: -70, y: -43 }] },
@@ -28,6 +29,7 @@ new p5((p5) => {
         ShaderMain = p5.loadShader('main_vert.glsl', 'main_frag.glsl');
         ShaderSide = p5.loadShader('side_vert.glsl', 'side_frag.glsl');
         texture = p5.loadImage('assets/gda_debug.png');
+	customFont = p5.loadFont('assets/E1234.ttf')
     }
 
     p5.setup = () => {
@@ -39,6 +41,9 @@ new p5((p5) => {
         MapMain = pMapper.createQuadMap(texture.width, texture.height);
 
         pMapper.load("maps/map.json");
+
+	// Set the loaded font
+	p5.textFont(customFont);
 
         // Initialize graphics buffers
         initializeGraphics(pgMain, "pink");
@@ -109,10 +114,35 @@ new p5((p5) => {
 	pg.textureMode(p5.NORMAL); // Set texture mode
 	pg.noStroke();
 	
-	// Calculate hue based on current time (assuming dataMock[t].timestamp is current timestamp)
+	// Calculate date and time based on current timestamp
 	let timestamp = dataMock[t].timestamp;
-	let hourOfDay = parseInt(timestamp.substring(11, 13)); // Extract hour part from timestamp
+	let date = new Date(timestamp); // Create a Date object from the timestamp string
 
+	// Extract day, month, year, hour, and minute
+	let day = date.getDate().toString().padStart(2, '0'); // Get day of the month (1-31)
+	let month = (date.getMonth() + 1).toString().padStart(2, '0'); // Get month (0-11, hence the +1)
+	let year = date.getFullYear().toString().slice(-2); // Get year (last two digits)
+	let hourOfDay = date.getHours().toString().padStart(2, '0'); // Get hour (0-23)
+	let minuteOfDay = date.getMinutes().toString().padStart(2, '0'); // Get minute (0-59)
+
+	// Format DD.MM.YY HH:MM text
+	let dateText = `${day}.${month}.${year}`;
+	let timeText = `${hourOfDay}:${minuteOfDay}`;
+
+	// Draw DD.MM.YY and HH:MM text separately with a newline in between
+	pg.textFont(customFont); // Set the font
+	pg.textSize(32); // Adjust text size as needed
+	pg.fill(255, 0, 0); // Set text color to white
+	pg.textAlign(p5.CENTER); // Align text to center
+
+	// Calculate positions based on canvas size
+	let x = pg.width / 4;
+	let yDate = -160; // Y position for date text
+	let yTime = -120; // Y position for time text
+
+	pg.text(dateText, x, yDate); // Draw date text
+	pg.text(timeText, x, yTime); // Draw time text
+	
 	// Map hour of the day to a hue value
 	let hue = p5.map(hourOfDay, 0, 23, 240, 60); // Map 0-23 hours to hue from blue to yellow
 
